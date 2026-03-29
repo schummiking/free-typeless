@@ -5,7 +5,9 @@ import crypto from 'crypto';
 import { pathToFileURL } from 'url';
 
 const APP_NAME = 'Typeless';
-const USER_DATA_DIR = path.join(os.homedir(), 'Library', 'Application Support', 'Typeless');
+const USER_DATA_DIR = process.platform === 'win32'
+  ? path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'Typeless.exe')
+  : path.join(os.homedir(), 'Library', 'Application Support', 'Typeless');
 const API_URL = 'https://api.typeless.com/user/dictionary/list?size=10000';
 
 function getArg(flag, fallback = null) {

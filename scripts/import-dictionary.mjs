@@ -18,7 +18,9 @@ import crypto from 'crypto';
 import { pathToFileURL } from 'url';
 
 const APP_NAME = 'Typeless';
-const USER_DATA_DIR = path.join(os.homedir(), 'Library', 'Application Support', 'Typeless');
+const USER_DATA_DIR = process.platform === 'win32'
+  ? path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'Typeless.exe')
+  : path.join(os.homedir(), 'Library', 'Application Support', 'Typeless');
 const API_BASE = 'https://api.typeless.com';
 
 function getArg(flag, fallback = null) {

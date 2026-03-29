@@ -38,7 +38,9 @@ const __dirname = path.dirname(__filename);
 
 // ── constants ────────────────────────────────────────────────────────────────
 const APP_NAME = 'Typeless';
-const USER_DATA_DIR = path.join(os.homedir(), 'Library', 'Application Support', 'Typeless');
+const USER_DATA_DIR = process.platform === 'win32'
+  ? path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'Typeless.exe')
+  : path.join(os.homedir(), 'Library', 'Application Support', 'Typeless');
 const REFER_URL = 'https://www.typeless.com/refer?code=JTIF7BK';
 const TOKEN_LS_KEY = 'MAXAI_CLIENT__FEATURES__AUTH__TOKEN_INFO';
 
@@ -52,7 +54,7 @@ function ask(question) {
   // If running non-interactively (e.g. from an AI agent), the code can be
   // supplied via a file at /tmp/typeless-code.txt instead of stdin.
   // The agent writes the code to that file after the verification email is sent.
-  const codeFile = '/tmp/typeless-code.txt';
+  const codeFile = path.join(os.tmpdir(), 'typeless-code.txt');
   return new Promise((resolve) => {
     // Poll for the code file for up to 5 minutes
     const poll = setInterval(() => {
@@ -132,31 +134,65 @@ function logoutLocal() {
   }
 
   // Reset device identifier so Typeless treats this as a new device
-  try {
-    execSync(
-      'security delete-generic-password ' +
-      '-s "now.typeless.desktop.deviceIdentifier" ' +
-      '-a "now.typeless.desktop.security.auth_key" 2>/dev/null',
-      { stdio: 'ignore' },
-    );
-    console.error('[switch] Reset device identifier');
-  } catch { /* may not exist, that's fine */ }
+  if (process.platform === 'win32') {
+    try {
+      execSync('cmdkey /delete:Typeless.deviceIdentifier', { stdio: 'ignore' });
+      console.error('[switch] Reset device identifier (Credential Manager)');
+    } catch { /* may not exist, that's fine */ }
+    // Also remove the device cache file
+    const deviceCache = path.join(process.env.APPDATA || '', 'Typeless', 'Cache', 'device.cache');
+    if (fs.existsSync(deviceCache)) {
+      fs.unlinkSync(deviceCache);
+      console.error('[switch] Removed device.cache');
+    }
+  } else {
+    try {
+      execSync(
+        'security delete-generic-password ' +
+        '-s "now.typeless.desktop.deviceIdentifier" ' +
+        '-a "now.typeless.desktop.security.auth_key" 2>/dev/null',
+        { stdio: 'ignore' },
+      );
+      console.error('[switch] Reset device identifier');
+    } catch { /* may not exist, that's fine */ }
+  }
 
   // Restart Typeless app to avoid stale in-memory state
-  try {
-    const isRunning = execSync('pgrep -f "Typeless.app" || true', { encoding: 'utf8' }).trim();
-    if (isRunning) {
-      console.error('[switch] Restarting Typeless app…');
-      execSync('osascript -e \'quit app "Typeless"\'', { stdio: 'ignore' });
-      for (let i = 0; i < 10; i++) {
-        const still = execSync('pgrep -f "Typeless.app" || true', { encoding: 'utf8' }).trim();
-        if (!still) break;
-        execSync('sleep 0.5');
+  if (process.platform === 'win32') {
+    try {
+      const isRunning = execSync('tasklist /FI "IMAGENAME eq Typeless.exe" /NH', { encoding: 'utf8' });
+      if (isRunning.includes('Typeless.exe')) {
+        console.error('[switch] Restarting Typeless app…');
+        execSync('taskkill /IM Typeless.exe /F', { stdio: 'ignore' });
+        // Wait for process to exit
+        for (let i = 0; i < 10; i++) {
+          const still = execSync('tasklist /FI "IMAGENAME eq Typeless.exe" /NH', { encoding: 'utf8' });
+          if (!still.includes('Typeless.exe')) break;
+          execSync('ping -n 2 127.0.0.1 >nul', { stdio: 'ignore' }); // ~1s delay
+        }
+        const exePath = path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Typeless', 'Typeless.exe');
+        if (fs.existsSync(exePath)) {
+          execSync(`start "" "${exePath}"`, { stdio: 'ignore', shell: true });
+          console.error('[switch] Typeless restarted');
+        }
       }
-      execSync('open -a Typeless', { stdio: 'ignore' });
-      console.error('[switch] Typeless restarted');
-    }
-  } catch { /* non-critical */ }
+    } catch { /* non-critical */ }
+  } else {
+    try {
+      const isRunning = execSync('pgrep -f "Typeless.app" || true', { encoding: 'utf8' }).trim();
+      if (isRunning) {
+        console.error('[switch] Restarting Typeless app…');
+        execSync('osascript -e \'quit app "Typeless"\'', { stdio: 'ignore' });
+        for (let i = 0; i < 10; i++) {
+          const still = execSync('pgrep -f "Typeless.app" || true', { encoding: 'utf8' }).trim();
+          if (!still) break;
+          execSync('sleep 0.5');
+        }
+        execSync('open -a Typeless', { stdio: 'ignore' });
+        console.error('[switch] Typeless restarted');
+      }
+    } catch { /* non-critical */ }
+  }
 }
 
 // ── Step 2-5: Headless browser login ─────────────────────────────────────────
