@@ -47,7 +47,7 @@ That's it. See `SKILL.md` for the full agent workflow.
 
 ## 📋 Requirements
 
-- **macOS** with Typeless desktop app installed
+- **macOS or Windows** with Typeless desktop app installed
 - **Node.js** 18+
 - An email that can receive verification codes
 
@@ -83,9 +83,14 @@ Same encryption Typeless uses. The desktop app picks up the new session on next 
 ├── README.md                         # You are here
 ├── accounts.json                     # Account history (gitignored)
 ├── scripts/
-│   ├── export-dictionary.sh/.mjs     # Dictionary export
-│   ├── import-dictionary.sh/.mjs     # Dictionary import
-│   └── switch-account.sh/.mjs        # Account switcher
+│   ├── export-dictionary.sh/.ps1     # Dictionary export (macOS/Windows)
+│   ├── export-dictionary.mjs         # Export logic (cross-platform)
+│   ├── import-dictionary.sh/.ps1     # Dictionary import (macOS/Windows)
+│   ├── import-dictionary.mjs         # Import logic (cross-platform)
+│   ├── switch-account.sh/.ps1        # Account switcher (macOS/Windows)
+│   ├── switch-account.mjs            # Switcher logic (cross-platform)
+│   ├── reset-device-macos.sh         # Device reset (macOS)
+│   └── reset-device-windows.ps1      # Device reset (Windows)
 └── references/
     ├── extract-dictionary.md         # Technical deep-dive
     └── typeless-dictionary-export.*  # Export artifacts (gitignored)
@@ -155,7 +160,7 @@ bash scripts/export-dictionary.sh
 
 ## 📋 环境要求
 
-- **macOS**，已安装 Typeless 桌面应用
+- **macOS 或 Windows**，已安装 Typeless 桌面应用
 - **Node.js** 18+
 - 一个能收验证码的邮箱
 

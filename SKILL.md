@@ -127,9 +127,19 @@ Use `--dry-run` to preview what would be imported without making changes.
 
 Prefer the bundled scripts instead of rewriting the logic during each run.
 
-- Dictionary export: `scripts/export-dictionary.sh`
-- Dictionary import: `scripts/import-dictionary.sh`
-- Account switcher: `scripts/switch-account.sh`
+**macOS (bash):**
+- Dictionary export: `bash scripts/export-dictionary.sh`
+- Dictionary import: `bash scripts/import-dictionary.sh`
+- Account switcher: `bash scripts/switch-account.sh`
+- Device reset: `bash scripts/reset-device-macos.sh`
+
+**Windows (PowerShell):**
+- Dictionary export: `powershell -ExecutionPolicy Bypass -File scripts\export-dictionary.ps1`
+- Dictionary import: `powershell -ExecutionPolicy Bypass -File scripts\import-dictionary.ps1`
+- Account switcher: `powershell -ExecutionPolicy Bypass -File scripts\switch-account.ps1`
+- Device reset: `powershell -ExecutionPolicy Bypass -File scripts\reset-device-windows.ps1`
+
+The underlying `.mjs` scripts are cross-platform — the shell/PowerShell wrappers just set up dependencies and environment variables.
 
 The wrappers install local runtime dependencies under `scripts/.vendor/` on first run.
 
@@ -147,26 +157,37 @@ When the user asks to "run this skill" or "do the dictionary migration", follow 
 
 ### Phase 1: Export from source account
 
-**If the user is already logged in locally** (check by running `bash scripts/export-dictionary.sh` — if it succeeds, skip to export):
+**If the user is already logged in locally** (check by running the export script — if it succeeds, skip to export):
 
-1. Export the dictionary: `bash scripts/export-dictionary.sh` → note the account email and word count.
-2. Save the export: `cp references/typeless-dictionary-export.json /tmp/source-dictionary.json`.
+On macOS: `bash scripts/export-dictionary.sh`
+On Windows: `powershell -ExecutionPolicy Bypass -File scripts\export-dictionary.ps1`
+
+1. Export the dictionary → note the account email and word count.
+2. Save the export:
+   - macOS: `cp references/typeless-dictionary-export.json /tmp/source-dictionary.json`
+   - Windows: `copy references\typeless-dictionary-export.json %TEMP%\source-dictionary.json`
 
 **If the user is NOT logged in locally** (export fails with "No Typeless login state found"):
 
-- **If they use email login**: Ask for their email, run `switch-account.sh`, ask for the verification code.
+- **If they use email login**: Ask for their email, run the account switcher, ask for the verification code.
 - **If they use Google/Apple login**: Ask them to open the Typeless desktop app, log in manually with Google/Apple, wait for it to sync, then come back. After that, the export will work without any script-based login.
 
 ### Phase 2: Import into target account
 
 1. **Ask the user**: "What email address would you like to use for the new Typeless account? (Gmail, Outlook, QQ Mail, etc. — any real email you can check.)"
-2. Start the account switcher in the background: `bash scripts/switch-account.sh --email <target-email> &`
-3. Wait for the script to reach the verification code prompt (poll with `sleep 2` until the process is waiting).
+2. Start the account switcher in the background:
+   - macOS: `bash scripts/switch-account.sh --email <target-email> &`
+   - Windows: `Start-Process node -ArgumentList "scripts/switch-account.mjs","--email","<target-email>" -NoNewWindow`
+3. Wait for the script to reach the verification code prompt.
 4. **Ask the user**: "I've sent a verification code to `<target-email>`. Please check your inbox (including spam) and give me the 6-digit code."
-5. Write the code to the signal file: `echo "<code>" > /tmp/typeless-code.txt`
+5. Write the code to the signal file (cross-platform temp dir):
+   - macOS: `echo "<code>" > /tmp/typeless-code.txt`
+   - Windows: `echo <code> > %TEMP%\typeless-code.txt`
 6. Wait for the background process to complete (the script reads the file and finishes login automatically).
-7. Import: `bash scripts/import-dictionary.sh --input /tmp/source-dictionary.json`.
-8. Verify: `bash scripts/export-dictionary.sh` and confirm the word count matches the source.
+7. Import the dictionary:
+   - macOS: `bash scripts/import-dictionary.sh --input /tmp/source-dictionary.json`
+   - Windows: `powershell -ExecutionPolicy Bypass -File scripts\import-dictionary.ps1 --input %TEMP%\source-dictionary.json`
+8. Verify by running the export script again and confirming the word count matches the source.
 
 ### Phase 3: Report
 
@@ -237,12 +258,14 @@ All accounts used by this skill are recorded in `accounts.json` at the skill roo
 
 ## Resources
 
-- `scripts/export-dictionary.sh` — dictionary export wrapper
-- `scripts/export-dictionary.mjs` — dictionary export logic (decrypt local state, call API)
-- `scripts/import-dictionary.sh` — dictionary import wrapper
-- `scripts/import-dictionary.mjs` — dictionary import logic (read export JSON, deduplicate, call add API)
-- `scripts/switch-account.sh` — account switcher wrapper
-- `scripts/switch-account.mjs` — account switcher logic (logout, headless email login, token capture)
+- `scripts/export-dictionary.sh` / `.ps1` — dictionary export wrapper (macOS / Windows)
+- `scripts/export-dictionary.mjs` — dictionary export logic (cross-platform)
+- `scripts/import-dictionary.sh` / `.ps1` — dictionary import wrapper (macOS / Windows)
+- `scripts/import-dictionary.mjs` — dictionary import logic (cross-platform)
+- `scripts/switch-account.sh` / `.ps1` — account switcher wrapper (macOS / Windows)
+- `scripts/switch-account.mjs` — account switcher logic (cross-platform)
+- `scripts/reset-device-macos.sh` — standalone device reset (macOS)
+- `scripts/reset-device-windows.ps1` — standalone device reset (Windows)
 - `references/extract-dictionary.md` — detailed extraction/import procedure and troubleshooting
 - `references/typeless-dictionary-export.*` — latest exported dictionary artifacts
 - `accounts.json` — local record of accounts used by this skill
