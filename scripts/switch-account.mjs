@@ -131,6 +131,17 @@ function logoutLocal() {
     } catch { /* ignore */ }
   }
 
+  // Reset device identifier so Typeless treats this as a new device
+  try {
+    execSync(
+      'security delete-generic-password ' +
+      '-s "now.typeless.desktop.deviceIdentifier" ' +
+      '-a "now.typeless.desktop.security.auth_key" 2>/dev/null',
+      { stdio: 'ignore' },
+    );
+    console.error('[switch] Reset device identifier');
+  } catch { /* may not exist, that's fine */ }
+
   // Restart Typeless app to avoid stale in-memory state
   try {
     const isRunning = execSync('pgrep -f "Typeless.app" || true', { encoding: 'utf8' }).trim();
