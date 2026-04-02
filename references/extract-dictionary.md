@@ -127,4 +127,4 @@ Typeless also stores a device identifier in macOS Keychain under:
 - service: `now.typeless.desktop.deviceIdentifier`
 - account: `now.typeless.desktop.security.auth_key`
 
-The account switcher does NOT modify this entry. It is device-scoped, not account-scoped.
+The account switcher and reset-device flow both delete this entry before re-login. This is intentional: Typeless then generates a fresh device identifier on the next successful login, which makes the local machine look like a new device again.

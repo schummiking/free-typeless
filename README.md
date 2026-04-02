@@ -69,12 +69,15 @@ That's it. See `SKILL.md` for the full agent workflow.
 ## 🔧 How account switching works
 
 1. Clears the local Typeless login state
-2. Opens a headless Chromium browser to the Typeless signup page
-3. Fills in your email, submits
-4. You provide the 6-digit verification code
-5. Script captures tokens from browser, writes encrypted local session
+2. Deletes Typeless's device identifier from Keychain / Credential Manager
+3. Opens a headless Chromium browser to the Typeless signup page
+4. Fills in your email, submits
+5. You provide the 6-digit verification code
+6. Script captures tokens from browser, writes encrypted local session
 
 Same encryption Typeless uses. The desktop app picks up the new session on next launch.
+
+On macOS, the helper scripts look for Typeless in `~/Applications/Typeless.app` first and then `/Applications/Typeless.app`. Set `TYPELESS_APP_PATH` if you need to override the app location.
 
 ## 📁 Project structure
 
@@ -182,12 +185,15 @@ bash scripts/export-dictionary.sh
 ## 🔧 账号切换原理
 
 1. 清除本地 Typeless 登录态
-2. 无头浏览器打开 Typeless 注册页面
-3. 自动填入邮箱并提交
-4. 你提供 6 位验证码
-5. 脚本捕获 token，写入加密的本地登录态
+2. 删除 Keychain / Credential Manager 中的 Typeless 设备标识
+3. 无头浏览器打开 Typeless 注册页面
+4. 自动填入邮箱并提交
+5. 你提供 6 位验证码
+6. 脚本捕获 token，写入加密的本地登录态
 
 使用与 Typeless 相同的加密方式，桌面应用下次启动时自动识别新会话。
+
+在 macOS 上，脚本会优先查找 `~/Applications/Typeless.app`，其次查找 `/Applications/Typeless.app`。如需覆盖默认路径，可设置环境变量 `TYPELESS_APP_PATH`。
 
 ## 🔌 自动化验证码获取
 

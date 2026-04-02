@@ -13,6 +13,28 @@ echo "[reset-device] Typeless device identifier reset tool (macOS)"
 
 TYPELESS_DIR="$HOME/Library/Application Support/Typeless"
 
+find_typeless_app() {
+  if [ -n "${TYPELESS_APP_PATH:-}" ] && [ -d "$TYPELESS_APP_PATH" ]; then
+    printf '%s\n' "$TYPELESS_APP_PATH"
+    return 0
+  fi
+
+  local candidate
+  for candidate in \
+    "$HOME/Applications/Typeless.app" \
+    "/Applications/Typeless.app"
+  do
+    if [ -d "$candidate" ]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+TYPELESS_APP_PATH_FOUND="$(find_typeless_app || true)"
+
 # 1. Kill Typeless if running
 if pgrep -f "Typeless.app" > /dev/null 2>&1; then
   echo "[reset-device] Stopping Typeless..."
@@ -62,12 +84,12 @@ else
 fi
 
 # 5. Restart Typeless
-if [ -d "/Applications/Typeless.app" ]; then
+if [ -n "$TYPELESS_APP_PATH_FOUND" ]; then
   echo "[reset-device] Starting Typeless..."
-  open -a Typeless
+  open "$TYPELESS_APP_PATH_FOUND"
   echo "[reset-device] Typeless started"
 else
-  echo "[reset-device] Typeless.app not found, please start it manually"
+  echo "[reset-device] Typeless.app not found in ~/Applications or /Applications, please start it manually"
 fi
 
 echo ""

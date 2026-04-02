@@ -44,6 +44,24 @@ const USER_DATA_DIR = process.platform === 'win32'
 const REFER_URL = 'https://www.typeless.com/refer?code=JTIF7BK';
 const TOKEN_LS_KEY = 'MAXAI_CLIENT__FEATURES__AUTH__TOKEN_INFO';
 
+function findTypelessAppPath() {
+  const candidates = [];
+  if (process.env.TYPELESS_APP_PATH) candidates.push(process.env.TYPELESS_APP_PATH);
+  if (process.platform === 'win32') {
+    candidates.push(
+      path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Typeless', 'Typeless.exe'),
+      path.join(process.env.ProgramFiles || 'C:\\Program Files', 'Typeless', 'Typeless.exe'),
+    );
+  } else {
+    candidates.push(
+      path.join(os.homedir(), 'Applications', 'Typeless.app'),
+      '/Applications/Typeless.app',
+    );
+  }
+
+  return candidates.find(candidate => candidate && fs.existsSync(candidate)) || null;
+}
+
 // ── arg helpers ──────────────────────────────────────────────────────────────
 function getArg(flag, fallback = null) {
   const i = process.argv.indexOf(flag);
@@ -170,8 +188,8 @@ function logoutLocal() {
           if (!still.includes('Typeless.exe')) break;
           execSync('ping -n 2 127.0.0.1 >nul', { stdio: 'ignore' }); // ~1s delay
         }
-        const exePath = path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Typeless', 'Typeless.exe');
-        if (fs.existsSync(exePath)) {
+        const exePath = findTypelessAppPath();
+        if (exePath && fs.existsSync(exePath)) {
           execSync(`start "" "${exePath}"`, { stdio: 'ignore', shell: true });
           console.error('[switch] Typeless restarted');
         }
@@ -188,8 +206,13 @@ function logoutLocal() {
           if (!still) break;
           execSync('sleep 0.5');
         }
-        execSync('open -a Typeless', { stdio: 'ignore' });
-        console.error('[switch] Typeless restarted');
+        const appPath = findTypelessAppPath();
+        if (appPath) {
+          execSync(`open "${appPath}"`, { stdio: 'ignore', shell: true });
+          console.error(`[switch] Typeless restarted from ${appPath}`);
+        } else {
+          console.error('[switch] Typeless app not found in ~/Applications or /Applications');
+        }
       }
     } catch { /* non-critical */ }
   }

@@ -77,17 +77,19 @@ bash scripts/switch-account.sh --email user@example.com --code 123456
 
 The script will:
 1. Delete the local encrypted login state (`user-data.json`) and clear `app-storage.json`.
-2. Open a headless Chromium browser to the Typeless login page.
-3. Automate the "Continue with email" flow: fill email → submit.
-4. Prompt for the 6-digit verification code (or accept it via `--code`).
-5. Submit the code, wait for login success, and read the access/refresh tokens from the browser's localStorage.
-6. Write the new login state into `user-data.json` using the same encryption Typeless uses.
-7. Record the account in `accounts.json`.
+2. Delete the Typeless device identifier from Keychain / Credential Manager so the next login is treated as a new device.
+3. Open a headless Chromium browser to the Typeless login page.
+4. Automate the "Continue with email" flow: fill email → submit.
+5. Prompt for the 6-digit verification code (or accept it via `--code`).
+6. Submit the code, wait for login success, and read the access/refresh tokens from the browser's localStorage.
+7. Write the new login state into `user-data.json` using the same encryption Typeless uses.
+8. Record the account in `accounts.json`.
 
 **Important notes:**
 
 - Only email-based login is supported (not Google or Apple sign-in).
-- The switch only affects the local data files. The running Typeless desktop app keeps its in-memory session until restarted. However, the export script reads directly from the data files, so exports will use the newly switched account immediately.
+- The switch resets both the local login state and the Typeless device identifier. This is intentional and makes the next login look like a fresh local device.
+- The running Typeless desktop app keeps its in-memory session until restarted. However, the export script reads directly from the data files, so exports will use the newly switched account immediately.
 
 ### 2. Extract the dictionary
 
