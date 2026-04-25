@@ -54,8 +54,8 @@ function findTypelessAppPath() {
     );
   } else {
     candidates.push(
-      path.join(os.homedir(), 'Applications', 'Typeless.app'),
       '/Applications/Typeless.app',
+      path.join(os.homedir(), 'Applications', 'Typeless.app'),
     );
   }
 
@@ -112,6 +112,86 @@ async function loadElectronStore() {
   return mod.default;
 }
 
+function removeIfExists(target, label) {
+  if (!fs.existsSync(target)) return;
+  fs.rmSync(target, { recursive: true, force: true });
+  console.error(`[switch] Removed ${label}`);
+}
+
+function backupPath(source, backupRoot, label) {
+  if (!fs.existsSync(source)) return;
+  const dest = path.join(backupRoot, label);
+  fs.cpSync(source, dest, { recursive: true, force: true, verbatimSymlinks: true });
+  console.error(`[switch] Backed up ${label}`);
+}
+
+function backupLocalState() {
+  const backupRoot = path.join(os.tmpdir(), `typeless-switch-backup-${new Date().toISOString().replace(/[:.]/g, '-')}`);
+  fs.mkdirSync(backupRoot, { recursive: true });
+  backupPath(USER_DATA_DIR, backupRoot, 'Typeless-Application-Support');
+
+  if (process.platform === 'darwin') {
+    const cacheRoot = path.join(os.homedir(), 'Library', 'Caches');
+    for (const name of ['now.typeless.desktop', 'typeless-updater', 'now.typeless.desktop.ShipIt']) {
+      backupPath(path.join(cacheRoot, name), backupRoot, name);
+    }
+  }
+
+  console.error(`[switch] Backup written to ${backupRoot}`);
+  return backupRoot;
+}
+
+function clearElectronSessionState() {
+  const paths = [
+    '.updaterId',
+    'Cookies',
+    'Cookies-journal',
+    'Local Storage',
+    'Session Storage',
+    'SharedStorage',
+    'SharedStorage-wal',
+    'SharedStorage-shm',
+    'Trust Tokens',
+    'Trust Tokens-journal',
+    'Network Persistent State',
+    'TransportSecurity',
+    'blob_storage',
+    'Cache',
+    'Code Cache',
+    'GPUCache',
+    'DawnGraphiteCache',
+    'DawnWebGPUCache',
+    path.join('Partitions', 'no-proxy-session', 'Cookies'),
+    path.join('Partitions', 'no-proxy-session', 'Cookies-journal'),
+    path.join('Partitions', 'no-proxy-session', 'Local Storage'),
+    path.join('Partitions', 'no-proxy-session', 'Session Storage'),
+    path.join('Partitions', 'no-proxy-session', 'SharedStorage'),
+    path.join('Partitions', 'no-proxy-session', 'SharedStorage-wal'),
+    path.join('Partitions', 'no-proxy-session', 'SharedStorage-shm'),
+    path.join('Partitions', 'no-proxy-session', 'Trust Tokens'),
+    path.join('Partitions', 'no-proxy-session', 'Trust Tokens-journal'),
+    path.join('Partitions', 'no-proxy-session', 'Network Persistent State'),
+    path.join('Partitions', 'no-proxy-session', 'TransportSecurity'),
+    path.join('Partitions', 'no-proxy-session', 'blob_storage'),
+    path.join('Partitions', 'no-proxy-session', 'Cache'),
+    path.join('Partitions', 'no-proxy-session', 'Code Cache'),
+    path.join('Partitions', 'no-proxy-session', 'GPUCache'),
+    path.join('Partitions', 'no-proxy-session', 'DawnGraphiteCache'),
+    path.join('Partitions', 'no-proxy-session', 'DawnWebGPUCache'),
+  ];
+
+  for (const rel of paths) {
+    removeIfExists(path.join(USER_DATA_DIR, rel), rel);
+  }
+
+  if (process.platform === 'darwin') {
+    const cacheRoot = path.join(os.homedir(), 'Library', 'Caches');
+    for (const name of ['now.typeless.desktop', 'typeless-updater', 'now.typeless.desktop.ShipIt']) {
+      removeIfExists(path.join(cacheRoot, name), name);
+    }
+  }
+}
+
 // ── (reserved) auto-fetch integration ────────────────────────────────────────
 // To enable automated code retrieval, implement a fetchVerificationCode(email)
 // function and wire it as a codeResolver in main(). See file header for details.
@@ -135,6 +215,8 @@ async function getCurrentEmail() {
 }
 
 function logoutLocal() {
+  backupLocalState();
+
   const userDataPath = path.join(USER_DATA_DIR, 'user-data.json');
   if (fs.existsSync(userDataPath)) {
     fs.unlinkSync(userDataPath);
@@ -146,8 +228,11 @@ function logoutLocal() {
       const data = JSON.parse(fs.readFileSync(appStoragePath, 'utf8'));
       delete data.userData;
       delete data.quotaUsage;
+      delete data.currentRoute;
+      delete data.TYPELESS_418_SEND_ERROR_COUNT;
+      delete data.TYPELESS_TIME_DIFF;
       fs.writeFileSync(appStoragePath, JSON.stringify(data, null, '\t'));
-      console.error('[switch] Cleared login state from app-storage.json');
+      console.error('[switch] Cleared login/quota request state from app-storage.json');
     } catch { /* ignore */ }
   }
 
@@ -174,6 +259,8 @@ function logoutLocal() {
       console.error('[switch] Reset device identifier');
     } catch { /* may not exist, that's fine */ }
   }
+
+  clearElectronSessionState();
 
   // Restart Typeless app to avoid stale in-memory state
   if (process.platform === 'win32') {
@@ -211,7 +298,7 @@ function logoutLocal() {
           execSync(`open "${appPath}"`, { stdio: 'ignore', shell: true });
           console.error(`[switch] Typeless restarted from ${appPath}`);
         } else {
-          console.error('[switch] Typeless app not found in ~/Applications or /Applications');
+          console.error('[switch] Typeless app not found in /Applications or ~/Applications');
         }
       }
     } catch { /* non-critical */ }

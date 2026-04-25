@@ -108,8 +108,11 @@ The account switcher (`scripts/switch-account.sh`) handles logout and login in o
 
 ### How logout works
 
-1. Delete `~/Library/Application Support/Typeless/user-data.json` (encrypted Electron Store containing the login session).
-2. Remove `userData` and `quotaUsage` keys from `app-storage.json`.
+1. Back up `~/Library/Application Support/Typeless` and selected macOS cache directories to `/tmp`.
+2. Delete `~/Library/Application Support/Typeless/user-data.json` (encrypted Electron Store containing the login session).
+3. Remove `userData`, `quotaUsage`, and request timing/error keys from `app-storage.json`.
+4. Clear Electron/Chromium session state: Cookies, Local Storage, Session Storage, Trust Tokens, SharedStorage, Network state, and cache directories.
+5. On macOS, clear `~/Library/Caches/now.typeless.desktop`, `~/Library/Caches/typeless-updater`, and `~/Library/Caches/now.typeless.desktop.ShipIt`.
 
 This only affects the on-disk state. The running Typeless desktop app keeps its in-memory session until restarted.
 
@@ -123,8 +126,8 @@ This only affects the on-disk state. The running Typeless desktop app keeps its 
 
 ### Keychain entry
 
-Typeless also stores a device identifier in macOS Keychain under:
+Older Typeless builds or prior experiments may store a device identifier in macOS Keychain under:
 - service: `now.typeless.desktop.deviceIdentifier`
 - account: `now.typeless.desktop.security.auth_key`
 
-The account switcher and reset-device flow both delete this entry before re-login. This is intentional: Typeless then generates a fresh device identifier on the next successful login, which makes the local machine look like a new device again.
+The account switcher and reset-device flow both delete this entry before re-login as a legacy cleanup step. Local inspection of Typeless 1.1.0/1.2.1 did not show this Keychain item as the primary device identity, so deleting only this item is not sufficient for `account exceeded limit` / connection-limit issues.

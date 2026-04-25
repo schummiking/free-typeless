@@ -76,19 +76,22 @@ bash scripts/switch-account.sh --email user@example.com --code 123456
 ```
 
 The script will:
-1. Delete the local encrypted login state (`user-data.json`) and clear `app-storage.json`.
-2. Delete the Typeless device identifier from Keychain / Credential Manager so the next login is treated as a new device.
-3. Open a headless Chromium browser to the Typeless login page.
-4. Automate the "Continue with email" flow: fill email → submit.
-5. Prompt for the 6-digit verification code (or accept it via `--code`).
-6. Submit the code, wait for login success, and read the access/refresh tokens from the browser's localStorage.
-7. Write the new login state into `user-data.json` using the same encryption Typeless uses.
-8. Record the account in `accounts.json`.
+1. Back up the local Typeless state to `/tmp`.
+2. Delete the local encrypted login state (`user-data.json`) and clear login/quota/request state from `app-storage.json`.
+3. Clear Electron session/cache files that can survive a simple logout.
+4. Delete the legacy Typeless device identifier from Keychain / Credential Manager.
+5. Open a headless Chromium browser to the Typeless login page.
+6. Automate the "Continue with email" flow: fill email → submit.
+7. Prompt for the 6-digit verification code (or accept it via `--code`).
+8. Submit the code, wait for login success, and read the access/refresh tokens from the browser's localStorage.
+9. Write the new login state into `user-data.json` using the same encryption Typeless uses.
+10. Record the account in `accounts.json`.
 
 **Important notes:**
 
 - Only email-based login is supported (not Google or Apple sign-in).
-- The switch resets both the local login state and the Typeless device identifier. This is intentional and makes the next login look like a fresh local device.
+- The switch resets local login/session/cache state and also removes the legacy Typeless device identifier. This is intentional and reduces reuse of stale local account/device state.
+- The Keychain device identifier is treated as a legacy cleanup item. Local inspection of Typeless 1.1.0/1.2.1 did not show it as the main device identity, so deleting only that item is not sufficient for `account exceeded limit` / connection-limit issues.
 - The running Typeless desktop app keeps its in-memory session until restarted. However, the export script reads directly from the data files, so exports will use the newly switched account immediately.
 
 ### 2. Extract the dictionary

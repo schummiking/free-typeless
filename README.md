@@ -68,16 +68,18 @@ That's it. See `SKILL.md` for the full agent workflow.
 
 ## 🔧 How account switching works
 
-1. Clears the local Typeless login state
-2. Deletes Typeless's device identifier from Keychain / Credential Manager
-3. Opens a headless Chromium browser to the Typeless signup page
-4. Fills in your email, submits
-5. You provide the 6-digit verification code
-6. Script captures tokens from browser, writes encrypted local session
+1. Backs up the local Typeless state to `/tmp`
+2. Clears the local Typeless login state and cached quota/request state
+3. Clears Electron session/cache files that can survive a simple logout
+4. Deletes Typeless's legacy device identifier from Keychain / Credential Manager
+5. Opens a headless Chromium browser to the Typeless signup page
+6. Fills in your email, submits
+7. You provide the 6-digit verification code
+8. Script captures tokens from browser, writes encrypted local session
 
 Same encryption Typeless uses. The desktop app picks up the new session on next launch.
 
-On macOS, the helper scripts look for Typeless in `~/Applications/Typeless.app` first and then `/Applications/Typeless.app`. Set `TYPELESS_APP_PATH` if you need to override the app location.
+On macOS, the helper scripts look for Typeless in `/Applications/Typeless.app` first and then `~/Applications/Typeless.app`. Set `TYPELESS_APP_PATH` if you need to override the app location.
 
 ## 📁 Project structure
 
@@ -107,6 +109,20 @@ Ideas:
 - Cloudflare Email Worker → KV → API query
 - IMAP client polling a mailbox
 - Any programmatic inbox reader
+
+## ⚠️ Known issues
+
+### `account exceeded limit` / `user web socket connection limit exceeded`
+
+Reported 2026-04-13 and reproduced locally on 2026-04-25 after restarting Typeless. The old reset flow only deleted `user-data.json`, `app-storage.json` login keys, and a legacy Keychain device identifier. That is not enough for recent Typeless builds because the app also reuses Electron/Chromium session state and updater/cache state.
+
+What changed:
+- `reset-device-macos.sh` now creates a backup before cleanup.
+- The reset flow clears login/quota/request state plus Electron Cookies, Local Storage, Session Storage, Trust Tokens, SharedStorage, Network state, and app caches.
+- The reset flow also clears `typeless-updater` / Squirrel caches to remove bad pending updates that can cause repeated macOS signature-validation failures.
+- The Keychain item is still deleted as a legacy cleanup step, but current 1.1.0/1.2.1 client code does not appear to use it as the main device identity.
+
+If the error persists after the stronger reset, it is likely server-side account/device-slot state rather than a local-only cache problem.
 
 ## 📄 License
 
@@ -184,16 +200,18 @@ bash scripts/export-dictionary.sh
 
 ## 🔧 账号切换原理
 
-1. 清除本地 Typeless 登录态
-2. 删除 Keychain / Credential Manager 中的 Typeless 设备标识
-3. 无头浏览器打开 Typeless 注册页面
-4. 自动填入邮箱并提交
-5. 你提供 6 位验证码
-6. 脚本捕获 token，写入加密的本地登录态
+1. 先把本地 Typeless 状态备份到 `/tmp`
+2. 清除本地 Typeless 登录态和已缓存的 quota/request 状态
+3. 清理简单登出后仍可能复用的 Electron session/cache 文件
+4. 删除 Keychain / Credential Manager 中的旧版 Typeless 设备标识
+5. 无头浏览器打开 Typeless 注册页面
+6. 自动填入邮箱并提交
+7. 你提供 6 位验证码
+8. 脚本捕获 token，写入加密的本地登录态
 
 使用与 Typeless 相同的加密方式，桌面应用下次启动时自动识别新会话。
 
-在 macOS 上，脚本会优先查找 `~/Applications/Typeless.app`，其次查找 `/Applications/Typeless.app`。如需覆盖默认路径，可设置环境变量 `TYPELESS_APP_PATH`。
+在 macOS 上，脚本会优先查找 `/Applications/Typeless.app`，其次查找 `~/Applications/Typeless.app`。如需覆盖默认路径，可设置环境变量 `TYPELESS_APP_PATH`。
 
 ## 🔌 自动化验证码获取
 
@@ -203,6 +221,20 @@ bash scripts/export-dictionary.sh
 - Cloudflare Email Worker → KV → API 查询
 - IMAP 客户端轮询邮箱
 - 任何能编程读取收件箱的服务
+
+## ⚠️ 已知问题
+
+### `account exceeded limit` / `user web socket connection limit exceeded`
+
+2026-04-13 首次报告，2026-04-25 在本机重启 Typeless 后复现。旧 reset 流程只删除 `user-data.json`、`app-storage.json` 登录字段和旧版 Keychain 设备标识；这对新版 Typeless 不够，因为 Electron/Chromium session、网络状态、缓存和 updater 状态也会被复用。
+
+已修复：
+- `reset-device-macos.sh` 会先自动备份。
+- reset 流程会清理登录/quota/request 状态，以及 Cookies、Local Storage、Session Storage、Trust Tokens、SharedStorage、Network state 和 app caches。
+- reset 流程会清理 `typeless-updater` / Squirrel 缓存，避免坏的待更新包反复触发 macOS 签名校验失败。
+- Keychain 项仍作为旧版兼容项删除，但 1.1.0/1.2.1 客户端代码里没有看到它作为主设备身份使用。
+
+如果强 reset 后仍报错，问题大概率已经落在服务端账号/设备槽状态，而不是本地缓存。
 
 ## 📄 许可证
 
