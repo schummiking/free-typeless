@@ -3,9 +3,9 @@
 # Reset Typeless local account/device state on macOS.
 #
 # Newer Typeless releases keep most reusable state in Electron Store,
-# Chromium session storage, and updater/cache directories. The old Keychain
-# device identifier is still removed as a legacy cleanup step, but it is not
-# enough by itself on recent builds.
+# Chromium session storage, and updater/cache directories. The Keychain device
+# identifier must be overwritten, not merely deleted: recent Typeless builds can
+# recreate the same identifier after deletion.
 #
 # Usage:
 #   bash scripts/reset-device-macos.sh
@@ -66,13 +66,21 @@ for cache_name in now.typeless.desktop typeless-updater now.typeless.desktop.Shi
   fi
 done
 
-# 3. Delete legacy device identifier from Keychain
-if security delete-generic-password \
+# 3. Overwrite the Keychain device identifier.
+OLD_DEVICE_UUID="$(security find-generic-password \
   -s "now.typeless.desktop.deviceIdentifier" \
-  -a "now.typeless.desktop.security.auth_key" 2>/dev/null; then
-  echo "[reset-device] Legacy device identifier removed from Keychain"
+  -a "now.typeless.desktop.security.auth_key" \
+  -w 2>/dev/null || true)"
+NEW_DEVICE_UUID="$(uuidgen)"
+printf 'old_uuid=%s\nnew_uuid=%s\n' "$OLD_DEVICE_UUID" "$NEW_DEVICE_UUID" > "$BACKUP_DIR/keychain-device-uuid.txt"
+
+if security add-generic-password -U \
+  -s "now.typeless.desktop.deviceIdentifier" \
+  -a "now.typeless.desktop.security.auth_key" \
+  -w "$NEW_DEVICE_UUID" >/dev/null; then
+  echo "[reset-device] Keychain device identifier overwritten: $NEW_DEVICE_UUID"
 else
-  echo "[reset-device] Legacy device identifier not found in Keychain (already clean)"
+  echo "[reset-device] Could not overwrite Keychain device identifier"
 fi
 
 # 4. Delete encrypted login state
@@ -169,4 +177,5 @@ fi
 echo ""
 echo "[reset-device] Done! Backup: $BACKUP_DIR"
 echo "[reset-device] Typeless will rebuild local account/session state on next login."
+echo "[reset-device] Keychain UUID backup: $BACKUP_DIR/keychain-device-uuid.txt"
 echo "[reset-device] You'll need to log in again in the Typeless app."

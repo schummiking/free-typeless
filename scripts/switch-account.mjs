@@ -141,6 +141,34 @@ function backupLocalState() {
   return backupRoot;
 }
 
+function resetMacKeychainDeviceIdentifier(backupRoot) {
+  let oldUuid = '';
+  try {
+    oldUuid = execSync(
+      'security find-generic-password ' +
+      '-s "now.typeless.desktop.deviceIdentifier" ' +
+      '-a "now.typeless.desktop.security.auth_key" ' +
+      '-w 2>/dev/null',
+      { encoding: 'utf8' },
+    ).trim();
+  } catch { /* may not exist, that's fine */ }
+
+  const newUuid = crypto.randomUUID().toUpperCase();
+  fs.writeFileSync(
+    path.join(backupRoot, 'keychain-device-uuid.txt'),
+    `old_uuid=${oldUuid}\nnew_uuid=${newUuid}\n`,
+  );
+
+  execSync(
+    'security add-generic-password -U ' +
+    '-s "now.typeless.desktop.deviceIdentifier" ' +
+    '-a "now.typeless.desktop.security.auth_key" ' +
+    `-w "${newUuid}"`,
+    { stdio: 'ignore' },
+  );
+  console.error(`[switch] Overwrote Keychain device identifier: ${newUuid}`);
+}
+
 function clearElectronSessionState() {
   const paths = [
     '.updaterId',
@@ -215,7 +243,7 @@ async function getCurrentEmail() {
 }
 
 function logoutLocal() {
-  backupLocalState();
+  const backupRoot = backupLocalState();
 
   const userDataPath = path.join(USER_DATA_DIR, 'user-data.json');
   if (fs.existsSync(userDataPath)) {
@@ -250,14 +278,10 @@ function logoutLocal() {
     }
   } else {
     try {
-      execSync(
-        'security delete-generic-password ' +
-        '-s "now.typeless.desktop.deviceIdentifier" ' +
-        '-a "now.typeless.desktop.security.auth_key" 2>/dev/null',
-        { stdio: 'ignore' },
-      );
-      console.error('[switch] Reset device identifier');
-    } catch { /* may not exist, that's fine */ }
+      resetMacKeychainDeviceIdentifier(backupRoot);
+    } catch {
+      console.error('[switch] Could not overwrite Keychain device identifier');
+    }
   }
 
   clearElectronSessionState();

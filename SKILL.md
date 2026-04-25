@@ -79,7 +79,7 @@ The script will:
 1. Back up the local Typeless state to `/tmp`.
 2. Delete the local encrypted login state (`user-data.json`) and clear login/quota/request state from `app-storage.json`.
 3. Clear Electron session/cache files that can survive a simple logout.
-4. Delete the legacy Typeless device identifier from Keychain / Credential Manager.
+4. Overwrite the Typeless Keychain / Credential Manager device identifier with a fresh UUID.
 5. Open a headless Chromium browser to the Typeless login page.
 6. Automate the "Continue with email" flow: fill email → submit.
 7. Prompt for the 6-digit verification code (or accept it via `--code`).
@@ -90,8 +90,8 @@ The script will:
 **Important notes:**
 
 - Only email-based login is supported (not Google or Apple sign-in).
-- The switch resets local login/session/cache state and also removes the legacy Typeless device identifier. This is intentional and reduces reuse of stale local account/device state.
-- The Keychain device identifier is treated as a legacy cleanup item. Local inspection of Typeless 1.1.0/1.2.1 did not show it as the main device identity, so deleting only that item is not sufficient for `account exceeded limit` / connection-limit issues.
+- The switch resets local login/session/cache state and also overwrites the Typeless device identifier. This is intentional and reduces reuse of stale local account/device state.
+- The Keychain device identifier must be overwritten, not merely deleted: Typeless 1.1.0 can recreate the same UUID after deletion, while a direct overwrite survives restart and fixed the local `account exceeded limit` case.
 - The running Typeless desktop app keeps its in-memory session until restarted. However, the export script reads directly from the data files, so exports will use the newly switched account immediately.
 
 ### 2. Extract the dictionary

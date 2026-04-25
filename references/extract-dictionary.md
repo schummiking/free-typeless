@@ -130,4 +130,4 @@ Older Typeless builds or prior experiments may store a device identifier in macO
 - service: `now.typeless.desktop.deviceIdentifier`
 - account: `now.typeless.desktop.security.auth_key`
 
-The account switcher and reset-device flow both delete this entry before re-login as a legacy cleanup step. Local inspection of Typeless 1.1.0/1.2.1 did not show this Keychain item as the primary device identity, so deleting only this item is not sufficient for `account exceeded limit` / connection-limit issues.
+The account switcher and reset-device flow overwrite this entry with a fresh UUID before re-login. This is intentionally an overwrite rather than a delete: Typeless 1.1.0 can recreate the same UUID after deletion, while direct overwrite survived restart and fixed the local `account exceeded limit` case.

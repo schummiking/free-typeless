@@ -71,7 +71,7 @@ That's it. See `SKILL.md` for the full agent workflow.
 1. Backs up the local Typeless state to `/tmp`
 2. Clears the local Typeless login state and cached quota/request state
 3. Clears Electron session/cache files that can survive a simple logout
-4. Deletes Typeless's legacy device identifier from Keychain / Credential Manager
+4. Overwrites Typeless's Keychain device identifier with a fresh UUID
 5. Opens a headless Chromium browser to the Typeless signup page
 6. Fills in your email, submits
 7. You provide the 6-digit verification code
@@ -120,7 +120,7 @@ What changed:
 - `reset-device-macos.sh` now creates a backup before cleanup.
 - The reset flow clears login/quota/request state plus Electron Cookies, Local Storage, Session Storage, Trust Tokens, SharedStorage, Network state, and app caches.
 - The reset flow also clears `typeless-updater` / Squirrel caches to remove bad pending updates that can cause repeated macOS signature-validation failures.
-- The Keychain item is still deleted as a legacy cleanup step, but current 1.1.0/1.2.1 client code does not appear to use it as the main device identity.
+- The Keychain item is overwritten, not merely deleted, because Typeless 1.1.0 can recreate the same UUID after deletion.
 
 If the error persists after the stronger reset, it is likely server-side account/device-slot state rather than a local-only cache problem.
 
@@ -203,7 +203,7 @@ bash scripts/export-dictionary.sh
 1. 先把本地 Typeless 状态备份到 `/tmp`
 2. 清除本地 Typeless 登录态和已缓存的 quota/request 状态
 3. 清理简单登出后仍可能复用的 Electron session/cache 文件
-4. 删除 Keychain / Credential Manager 中的旧版 Typeless 设备标识
+4. 把 Keychain / Credential Manager 中的 Typeless 设备标识覆盖为新的 UUID
 5. 无头浏览器打开 Typeless 注册页面
 6. 自动填入邮箱并提交
 7. 你提供 6 位验证码
@@ -232,7 +232,7 @@ bash scripts/export-dictionary.sh
 - `reset-device-macos.sh` 会先自动备份。
 - reset 流程会清理登录/quota/request 状态，以及 Cookies、Local Storage、Session Storage、Trust Tokens、SharedStorage、Network state 和 app caches。
 - reset 流程会清理 `typeless-updater` / Squirrel 缓存，避免坏的待更新包反复触发 macOS 签名校验失败。
-- Keychain 项仍作为旧版兼容项删除，但 1.1.0/1.2.1 客户端代码里没有看到它作为主设备身份使用。
+- Keychain 项会被覆盖而不是单纯删除，因为 Typeless 1.1.0 在删除后可能重建同一个 UUID。
 
 如果强 reset 后仍报错，问题大概率已经落在服务端账号/设备槽状态，而不是本地缓存。
 
